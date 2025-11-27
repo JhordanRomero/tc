@@ -12,7 +12,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
-        /* Aseguramos que la página ocupe todo el alto incluso si falla Tailwind */
+        /* Layout Full Screen */
         html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #334155; }
         
@@ -22,7 +22,8 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        .input-ghost { background: transparent; border: none; outline: none; width: 100%; }
+        /* Inputs transparentes y llenos */
+        .input-ghost { background: transparent; border: none; outline: none; width: 100%; height: 100%; }
         .input-ghost:focus { background: rgba(255,255,255,0.5); }
         
         .fade-in { animation: fadeIn 0.1s ease-out forwards; }
@@ -36,15 +37,12 @@
     <div class="bg-white border-b px-6 py-3 flex justify-between items-center shadow-sm z-20 h-16 shrink-0" onclick="event.stopPropagation()">
         <div>
             <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <!-- Icono SVG manual por si falla Lucide -->
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 Planificador Gantt
             </h1>
         </div>
         <div class="flex gap-3">
-            <!-- Botón Reset de Emergencia -->
-            <button onclick="hardReset()" class="text-xs text-red-400 hover:text-red-600 underline px-2" title="Si algo falla, haz clic aquí">Reiniciar Todo</button>
-            
+            <button onclick="hardReset()" class="text-xs text-red-400 hover:text-red-600 underline px-2" title="Reiniciar datos por defecto">Cargar Tareas Imagen</button>
             <button onclick="scrollToToday()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-md transition-colors text-xs font-medium shadow-sm">
                 <span>Ir a Hoy</span>
             </button>
@@ -54,7 +52,7 @@
         </div>
     </div>
 
-    <!-- CONTENEDOR PRINCIPAL (Para asegurar que los hijos se expandan) -->
+    <!-- CONTENEDOR PRINCIPAL -->
     <div class="flex-1 flex flex-col overflow-hidden relative">
         
         <!-- TABLA DE TAREAS -->
@@ -74,9 +72,7 @@
                 <div class="h-full flex items-center justify-center"></div>
             </div>
 
-            <div class="overflow-y-auto custom-scrollbar flex-1 pb-10 bg-white" id="task-list">
-                <!-- Aquí se inyectan las filas -->
-            </div>
+            <div class="overflow-y-auto custom-scrollbar flex-1 pb-10 bg-white" id="task-list"></div>
         </div>
 
         <!-- GANTT VISUAL -->
@@ -106,25 +102,34 @@
         </div>
     </div>
 
-    <!-- MENÚS FLOTANTES -->
-    
+    <!-- MENÚ FLOTANTE: EDITOR DE CATEGORÍA -->
     <div id="category-editor" class="hidden fixed bg-white rounded-lg shadow-xl border border-gray-200 w-72 p-4 z-50 fade-in" onclick="event.stopPropagation()">
         <div class="flex justify-between items-center mb-3">
             <h4 class="text-xs font-bold text-gray-500 uppercase">Editar Categoría</h4>
-            <button onclick="closeCategoryEditor()" class="text-gray-400 hover:text-gray-600">✕</button>
+            <button onclick="event.stopPropagation(); closeCategoryEditor()" class="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-gray-100">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
         </div>
+        
         <div class="mb-4">
-            <label class="block text-xs text-gray-600 mb-1">Nombre</label>
-            <input type="text" id="cat-name-input" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500 mb-2">
-            <div id="cat-suggestions" class="flex flex-wrap gap-1"></div>
+            <label class="block text-xs text-gray-600 mb-1 font-semibold">Nombre</label>
+            <input type="text" id="cat-name-input" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500 mb-2" placeholder="Escribe o selecciona...">
+            
+            <div class="mt-2">
+                <label class="block text-[10px] text-gray-400 mb-1 uppercase tracking-wider">Selección Rápida</label>
+                <div id="cat-predefined" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto custom-scrollbar p-1 border border-gray-50 rounded bg-gray-50"></div>
+            </div>
         </div>
+
         <div class="mb-4">
-            <label class="block text-xs text-gray-600 mb-2">Color</label>
+            <label class="block text-xs text-gray-600 mb-2 font-semibold">Color</label>
             <div class="grid grid-cols-6 gap-2" id="color-picker"></div>
         </div>
-        <button onclick="saveCategory()" class="w-full bg-blue-600 text-white text-xs font-medium py-2 rounded hover:bg-blue-700 transition-colors">Aplicar</button>
+        
+        <button onclick="saveCategory()" class="w-full bg-blue-600 text-white text-xs font-medium py-2 rounded hover:bg-blue-700 transition-colors">Guardar Cambios</button>
     </div>
 
+    <!-- MENÚ FLOTANTE: ACCIONES -->
     <div id="action-menu" class="hidden fixed bg-white rounded-lg shadow-xl border border-gray-200 w-40 py-1 z-50 fade-in" onclick="event.stopPropagation()">
         <button onclick="event.stopPropagation(); actionDuplicate()" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 hover:text-blue-600">
             Duplicar
@@ -139,47 +144,68 @@
     </div>
 
     <script>
+        // CONFIGURACIÓN
         const COLOR_PALETTE = [
-            { name: 'Rojo', class: 'bg-red-200' }, { name: 'Naranja', class: 'bg-orange-200' },
-            { name: 'Ámbar', class: 'bg-amber-200' }, { name: 'Amarillo', class: 'bg-yellow-100' },
-            { name: 'Lima', class: 'bg-lime-200' }, { name: 'Verde', class: 'bg-green-200' },
-            { name: 'Esmeralda', class: 'bg-emerald-200' }, { name: 'Cian', class: 'bg-cyan-200' },
-            { name: 'Azul', class: 'bg-blue-200' }, { name: 'Violeta', class: 'bg-violet-200' },
-            { name: 'Rosa', class: 'bg-pink-200' }, { name: 'Gris', class: 'bg-gray-200' },
+            { name: 'Verde', class: 'bg-green-200' }, 
+            { name: 'Azul', class: 'bg-blue-200' },
+            { name: 'Rosa', class: 'bg-pink-200' }, 
+            { name: 'Amarillo', class: 'bg-yellow-100' },
+            { name: 'Rojo', class: 'bg-red-200' }, 
+            { name: 'Indigo', class: 'bg-indigo-200' },
+            { name: 'Cian', class: 'bg-cyan-200' }, 
+            { name: 'Naranja', class: 'bg-orange-200' },
+            { name: 'Lima', class: 'bg-lime-200' }, 
+            { name: 'Esmeralda', class: 'bg-emerald-200' },
+            { name: 'Violeta', class: 'bg-violet-200' }, 
+            { name: 'Gris', class: 'bg-gray-200' },
         ];
 
+        const PREDEFINED_CATEGORIES = [
+            "Página Web",
+            "Google Ads",
+            "RRSS",
+            "Mercado Libre",
+            "Retail",
+            "Locales",
+            "General"
+        ];
+
+        // TAREAS BASADAS EN LA IMAGEN ADJUNTA
         const DEFAULT_DATA = [
-            { id: 1, category: 'Web', task: 'Diseño Inicial', start: new Date().toISOString().split('T')[0], duration: 3, completed: false, color: 'bg-blue-200' },
-            { id: 2, category: 'Marketing', task: 'Campaña RRSS', start: new Date().toISOString().split('T')[0], duration: 5, completed: false, color: 'bg-pink-200' },
+            { id: 1, category: 'Página Web', task: 'Gráficas ATPW corregir cilindro', start: '2025-11-27', duration: 1, completed: false, color: 'bg-green-200' },
+            { id: 2, category: 'Página Web', task: 'Corregir gráfica Calefon ATMD 13 litros, rosca de agua 3/', start: '2025-11-27', duration: 1, completed: false, color: 'bg-green-200' },
+            { id: 3, category: 'Google Ads', task: '', start: '2025-12-01', duration: 9, completed: false, color: 'bg-blue-200' },
+            { id: 4, category: 'RRSS', task: 'Gráficas adaptadas Black', start: '2025-11-26', duration: 1, completed: false, color: 'bg-pink-200' },
+            { id: 5, category: 'Mercado Libre', task: "Gráficas generales 'Mi Página'", start: '2025-12-01', duration: 9, completed: false, color: 'bg-yellow-100' },
+            { id: 6, category: 'Mercado Libre', task: "Clip 'Mi Página'", start: '2025-12-01', duration: 4, completed: false, color: 'bg-yellow-100' },
+            { id: 7, category: 'Mercado Libre', task: "Gráficas Black 'Mi Página'", start: '2025-11-27', duration: 1, completed: false, color: 'bg-yellow-100' },
+            { id: 8, category: 'Retail', task: 'Gráficas ATPW para retail', start: '2025-11-26', duration: 2, completed: false, color: 'bg-red-200' },
+            { id: 9, category: 'Locales', task: '', start: '2025-12-01', duration: 9, completed: false, color: 'bg-indigo-200' },
+            { id: 10, category: 'General', task: 'Catálogo: terminar categoría calefones', start: '2025-12-01', duration: 4, completed: false, color: 'bg-cyan-200' }
         ];
 
         const DAY_WIDTH = 44;
         let tasks = [];
         let activeTaskId = null;
 
-        // --- CARGA DE DATOS SEGURA ---
+        // --- CORE ---
+        function init() {
+            loadData();
+            renderTable();
+            renderGantt();
+        }
+
         function loadData() {
             try {
                 const stored = localStorage.getItem('gantt_tasks_html');
                 if (stored) {
                     tasks = JSON.parse(stored);
-                    if (!Array.isArray(tasks)) throw new Error("Datos corruptos");
                 } else {
                     tasks = JSON.parse(JSON.stringify(DEFAULT_DATA));
                 }
             } catch (e) {
-                console.error("Error cargando datos, reiniciando:", e);
+                console.error("Error cargando datos", e);
                 tasks = JSON.parse(JSON.stringify(DEFAULT_DATA));
-            }
-        }
-
-        // --- FUNCIONES CORE ---
-        function init() {
-            loadData();
-            renderTable();
-            renderGantt();
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
             }
         }
 
@@ -189,14 +215,14 @@
             renderGantt();
         }
 
-        // --- RESET DE EMERGENCIA ---
         function hardReset() {
-            if(confirm("¿Reiniciar todo a los valores por defecto? Se borrarán tus cambios.")) {
+            if(confirm("¿Cargar las tareas de la imagen y reiniciar todo?")) {
                 localStorage.removeItem('gantt_tasks_html');
                 location.reload();
             }
         }
 
+        // UTILS
         function escapeHtml(text) {
             if (!text) return "";
             return String(text).replace(/"/g, "&quot;").replace(/'/g, "&#039;");
@@ -218,9 +244,7 @@
             return diffDays > 0 ? diffDays : 1; 
         }
 
-        function idsMatch(id1, id2) {
-            return String(id1) === String(id2);
-        }
+        function idsMatch(id1, id2) { return String(id1) === String(id2); }
 
         // --- RENDERIZADO ---
         function renderTable() {
@@ -233,11 +257,9 @@
                 const opacityClass = task.completed ? 'opacity-50 grayscale' : '';
                 const completedBg = task.completed ? 'bg-gray-50' : 'bg-white';
                 
-                // Iconos SVG en línea por seguridad (si falla Lucide)
                 const checkIcon = task.completed 
                     ? `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="#dcfce7" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>`
                     : `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>`;
-                
                 const dotsIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>`;
 
                 const row = document.createElement('div');
@@ -245,9 +267,7 @@
                 
                 row.innerHTML = `
                     <div class="border-r h-full flex items-center justify-center">
-                        <button onclick="toggleComplete('${task.id}')" class="hover:scale-110 transition-transform">
-                            ${checkIcon}
-                        </button>
+                        <button onclick="toggleComplete('${task.id}')" class="hover:scale-110 transition-transform">${checkIcon}</button>
                     </div>
                     <div class="border-r h-full px-2 py-1 flex items-center ${opacityClass}">
                         <div onclick="openCategoryMenu(event, '${task.id}')" class="w-full h-8 px-2 rounded flex items-center justify-between cursor-pointer hover:brightness-95 text-xs font-bold text-gray-800 ${task.color || 'bg-gray-200'}">
@@ -258,15 +278,26 @@
                     <div class="border-r h-full px-3 py-1 flex items-center ${opacityClass}">
                         <input type="text" value="${escapeHtml(task.task)}" onchange="updateTask('${task.id}', 'task', this.value)" class="input-ghost text-sm font-medium text-gray-700 placeholder-gray-400" placeholder="Nombre tarea...">
                     </div>
-                    <div class="border-r h-full px-1 py-1 flex items-center justify-center ${opacityClass}">
-                        <input type="date" value="${task.start}" onchange="updateStart('${task.id}', this.value)" class="input-ghost text-center text-xs font-mono text-gray-600 cursor-pointer">
+                    
+                    <div class="border-r h-full px-1 py-1 flex items-center justify-center ${opacityClass} relative hover:bg-gray-100 transition-colors cursor-pointer">
+                        <input type="date" value="${task.start}" 
+                            onclick="try { this.showPicker(); } catch(e) {}"
+                            onchange="updateStart('${task.id}', this.value)" 
+                            class="input-ghost text-center text-xs font-mono text-gray-600 cursor-pointer w-full h-full absolute inset-0 opacity-0 sm:opacity-100">
+                        <span class="pointer-events-none absolute text-xs font-mono text-gray-600 sm:hidden">${task.start}</span>
                     </div>
+
                     <div class="border-r h-full px-1 py-1 flex items-center justify-center ${opacityClass}">
                         <input type="number" min="1" value="${task.duration}" onchange="updateDuration('${task.id}', this.value)" class="input-ghost text-center text-xs font-mono text-gray-600">
                     </div>
-                    <div class="h-full px-1 py-1 flex items-center justify-center ${opacityClass}">
-                        <input type="date" value="${endDate}" onchange="updateEnd('${task.id}', this.value)" class="input-ghost text-center text-xs font-mono text-gray-500 cursor-pointer">
+                    
+                    <div class="h-full px-1 py-1 flex items-center justify-center ${opacityClass} relative hover:bg-gray-100 transition-colors cursor-pointer">
+                        <input type="date" value="${endDate}" 
+                            onclick="try { this.showPicker(); } catch(e) {}"
+                            onchange="updateEnd('${task.id}', this.value)" 
+                            class="input-ghost text-center text-xs font-mono text-gray-500 cursor-pointer w-full h-full">
                     </div>
+
                     <div class="h-full flex items-center justify-center relative">
                         <button onclick="openActionMenu(event, '${task.id}')" class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors opacity-0 group-hover:opacity-100">
                             ${dotsIcon}
@@ -368,34 +399,26 @@
             window.timelineStart = startDate;
         }
 
-        // --- ACCIONES DE DATOS ---
+        // --- ACCIONES DATOS ---
         function updateTask(id, key, value) {
             tasks = tasks.map(t => idsMatch(t.id, id) ? { ...t, [key]: value } : t);
             saveData();
         }
-
         function updateStart(id, newDate) { updateTask(id, 'start', newDate); }
-        
         function updateDuration(id, newDur) {
             const dur = parseInt(newDur) || 1;
             updateTask(id, 'duration', dur);
         }
-
         function updateEnd(id, newEndDate) {
             const task = tasks.find(t => idsMatch(t.id, id));
             if (!task) return;
             const days = getDaysDiff(task.start, newEndDate);
             updateDuration(id, days);
         }
-
         function toggleComplete(id) {
             const task = tasks.find(t => idsMatch(t.id, id));
-            if(task) {
-                task.completed = !task.completed;
-                saveData();
-            }
+            if(task) { task.completed = !task.completed; saveData(); }
         }
-
         function addNewTask() {
             const newTask = {
                 id: Date.now(),
@@ -414,22 +437,24 @@
             }, 50);
         }
 
+        // --- UI MENÚS ---
         function closeAllMenus() {
             document.getElementById('category-editor').classList.add('hidden');
             document.getElementById('action-menu').classList.add('hidden');
         }
 
-        // --- ACCIONES DE MENÚ ---
+        function closeCategoryEditor() {
+            document.getElementById('category-editor').classList.add('hidden');
+        }
+
         function openActionMenu(e, id) {
             e.stopPropagation();
             closeAllMenus();
             activeTaskId = id;
-            
             const menu = document.getElementById('action-menu');
             const rect = e.currentTarget.getBoundingClientRect();
             let top = rect.bottom + 5;
             if (top + 120 > window.innerHeight) top = rect.top - 120 - 5;
-            
             menu.style.top = `${top}px`;
             menu.style.left = `${rect.right - 160}px`; 
             menu.classList.remove('hidden');
@@ -437,16 +462,12 @@
 
         function actionDelete() {
             if (!activeTaskId) return;
-            if(confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
+            if(confirm('¿Eliminar esta tarea?')) {
                 const idx = tasks.findIndex(t => idsMatch(t.id, activeTaskId));
-                if (idx > -1) {
-                    tasks.splice(idx, 1);
-                    saveData();
-                }
+                if (idx > -1) { tasks.splice(idx, 1); saveData(); }
             }
             closeAllMenus();
         }
-
         function actionDuplicate() {
             if (!activeTaskId) return;
             const task = tasks.find(t => idsMatch(t.id, activeTaskId));
@@ -458,7 +479,6 @@
             }
             closeAllMenus();
         }
-
         function actionNewAfter() {
              if (!activeTaskId) return;
              const newTask = {
@@ -489,10 +509,10 @@
             
             document.getElementById('cat-name-input').value = task.category;
             
-            const uniqueCats = [...new Set(tasks.map(t => JSON.stringify({n: t.category, c: t.color})))].map(s => JSON.parse(s));
-            const suggContainer = document.getElementById('cat-suggestions');
-            suggContainer.innerHTML = uniqueCats.slice(0, 5).map(c => 
-                `<button onclick="fillCategory('${escapeHtml(c.n)}', '${c.c}')" class="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 truncate max-w-[100px]">${escapeHtml(c.n)}</button>`
+            // Rellenar lista de predefinidas
+            const predefContainer = document.getElementById('cat-predefined');
+            predefContainer.innerHTML = PREDEFINED_CATEGORIES.map(cat => 
+                `<button onclick="fillCategory('${escapeHtml(cat)}')" class="text-[10px] px-2 py-1 rounded bg-white border border-gray-200 text-gray-700 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors">${escapeHtml(cat)}</button>`
             ).join('');
 
             const colorContainer = document.getElementById('color-picker');
@@ -503,10 +523,9 @@
             menu.classList.remove('hidden');
         }
 
-        function fillCategory(name, color) {
+        function fillCategory(name) {
             document.getElementById('cat-name-input').value = name;
-            const colorDivs = document.querySelectorAll('#color-picker div');
-            colorDivs.forEach(d => { if(d.dataset.color === color) d.click(); });
+            // Opcional: Auto-seleccionar color basado en nombre si quisieras, pero no se pidió
         }
 
         function selectColor(colorClass, el) {
@@ -547,7 +566,6 @@
             document.getElementById('gantt-container').scrollTo({ left: Math.max(0, scrollPos), behavior: 'smooth' });
         }
 
-        // --- ARRANQUE ---
         window.addEventListener('DOMContentLoaded', init);
 
     </script>
