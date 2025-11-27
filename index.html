@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planificador Gantt Pro</title>
+    
+    <!-- LIBRERÍAS EXTERNAS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        /* Aseguramos que la página ocupe todo el alto incluso si falla Tailwind */
+        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #334155; }
+        
+        /* Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .input-ghost { background: transparent; border: none; outline: none; width: 100%; }
+        .input-ghost:focus { background: rgba(255,255,255,0.5); }
+        
+        .fade-in { animation: fadeIn 0.1s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+
+<body class="flex flex-col h-full" onclick="closeAllMenus()">
+
+    <!-- HEADER -->
+    <div class="bg-white border-b px-6 py-3 flex justify-between items-center shadow-sm z-20 h-16 shrink-0" onclick="event.stopPropagation()">
+        <div>
+            <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <!-- Icono SVG manual por si falla Lucide -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Planificador Gantt
+            </h1>
+        </div>
+        <div class="flex gap-3">
+            <!-- Botón Reset de Emergencia -->
+            <button onclick="hardReset()" class="text-xs text-red-400 hover:text-red-600 underline px-2" title="Si algo falla, haz clic aquí">Reiniciar Todo</button>
+            
+            <button onclick="scrollToToday()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-md transition-colors text-xs font-medium shadow-sm">
+                <span>Ir a Hoy</span>
+            </button>
+            <button onclick="addNewTask()" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors shadow-sm font-medium text-sm">
+                <span>+ Nueva Tarea</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- CONTENEDOR PRINCIPAL (Para asegurar que los hijos se expandan) -->
+    <div class="flex-1 flex flex-col overflow-hidden relative">
+        
+        <!-- TABLA DE TAREAS -->
+        <div class="flex-1 bg-white m-4 mb-2 rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden relative z-10" onclick="event.stopPropagation()">
+            <div class="px-5 py-3 bg-gray-50 border-b font-semibold text-gray-700 flex justify-between items-center shrink-0">
+                <span class="flex items-center gap-2">📝 Editor de Tareas</span>
+                <span class="text-xs text-gray-400" id="task-count">0 tareas</span>
+            </div>
+
+            <div class="grid grid-cols-[40px_160px_1fr_110px_70px_110px_40px] bg-white font-semibold border-b border-gray-200 text-gray-500 text-xs uppercase tracking-wider h-[40px] items-center shrink-0 shadow-sm z-10">
+                <div class="border-r h-full flex items-center justify-center">OK</div>
+                <div class="px-3 border-r h-full flex items-center">Categoría</div>
+                <div class="px-3 border-r h-full flex items-center">Tarea</div>
+                <div class="px-1 border-r h-full flex items-center justify-center">Inicio</div>
+                <div class="px-1 border-r h-full flex items-center justify-center">Días</div>
+                <div class="px-1 h-full flex items-center justify-center">Fin</div>
+                <div class="h-full flex items-center justify-center"></div>
+            </div>
+
+            <div class="overflow-y-auto custom-scrollbar flex-1 pb-10 bg-white" id="task-list">
+                <!-- Aquí se inyectan las filas -->
+            </div>
+        </div>
+
+        <!-- GANTT VISUAL -->
+        <div class="flex-1 bg-white m-4 mt-2 rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden relative z-0">
+            <div class="px-5 py-3 bg-gray-50 border-b font-semibold text-gray-700 flex items-center gap-2 shrink-0">
+                <span>📊 Cronograma Visual</span>
+            </div>
+
+            <div class="flex flex-1 overflow-hidden">
+                <div class="w-56 flex-shrink-0 border-r border-gray-200 bg-white z-20 shadow-sm flex flex-col">
+                    <div class="h-[40px] border-b border-gray-200 bg-gray-50 flex items-center px-4 text-[10px] uppercase tracking-wider text-gray-500 font-bold shrink-0">
+                        Referencia
+                    </div>
+                    <div class="overflow-hidden flex-1 bg-white pt-0" id="gantt-labels"></div>
+                </div>
+
+                <div class="flex-1 flex flex-col overflow-hidden relative bg-white">
+                    <div id="gantt-container" class="flex-1 overflow-auto bg-slate-50 relative scroll-smooth custom-scrollbar">
+                        <div id="gantt-content" class="relative min-h-full">
+                            <div id="gantt-header" class="sticky top-0 z-30 flex border-b border-gray-200 bg-white h-[40px] shadow-sm"></div>
+                            <div id="gantt-grid" class="absolute inset-0 top-[40px] flex pointer-events-none h-full"></div>
+                            <div id="gantt-bars" class="relative z-10"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MENÚS FLOTANTES -->
+    
+    <div id="category-editor" class="hidden fixed bg-white rounded-lg shadow-xl border border-gray-200 w-72 p-4 z-50 fade-in" onclick="event.stopPropagation()">
+        <div class="flex justify-between items-center mb-3">
+            <h4 class="text-xs font-bold text-gray-500 uppercase">Editar Categoría</h4>
+            <button onclick="closeCategoryEditor()" class="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        <div class="mb-4">
+            <label class="block text-xs text-gray-600 mb-1">Nombre</label>
+            <input type="text" id="cat-name-input" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500 mb-2">
+            <div id="cat-suggestions" class="flex flex-wrap gap-1"></div>
+        </div>
+        <div class="mb-4">
+            <label class="block text-xs text-gray-600 mb-2">Color</label>
+            <div class="grid grid-cols-6 gap-2" id="color-picker"></div>
+        </div>
+        <button onclick="saveCategory()" class="w-full bg-blue-600 text-white text-xs font-medium py-2 rounded hover:bg-blue-700 transition-colors">Aplicar</button>
+    </div>
+
+    <div id="action-menu" class="hidden fixed bg-white rounded-lg shadow-xl border border-gray-200 w-40 py-1 z-50 fade-in" onclick="event.stopPropagation()">
+        <button onclick="event.stopPropagation(); actionDuplicate()" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 hover:text-blue-600">
+            Duplicar
+        </button>
+        <button onclick="event.stopPropagation(); actionDelete()" class="w-full text-left px-4 py-2 text-xs text-red-600 hover:bg-red-50 flex items-center gap-2">
+            Eliminar
+        </button>
+        <div class="h-px bg-gray-100 my-1"></div>
+        <button onclick="event.stopPropagation(); actionNewAfter()" class="w-full text-left px-4 py-2 text-xs text-blue-600 hover:bg-blue-50 flex items-center gap-2">
+            Insertar debajo
+        </button>
+    </div>
+
+    <script>
+        const COLOR_PALETTE = [
+            { name: 'Rojo', class: 'bg-red-200' }, { name: 'Naranja', class: 'bg-orange-200' },
+            { name: 'Ámbar', class: 'bg-amber-200' }, { name: 'Amarillo', class: 'bg-yellow-100' },
+            { name: 'Lima', class: 'bg-lime-200' }, { name: 'Verde', class: 'bg-green-200' },
+            { name: 'Esmeralda', class: 'bg-emerald-200' }, { name: 'Cian', class: 'bg-cyan-200' },
+            { name: 'Azul', class: 'bg-blue-200' }, { name: 'Violeta', class: 'bg-violet-200' },
+            { name: 'Rosa', class: 'bg-pink-200' }, { name: 'Gris', class: 'bg-gray-200' },
+        ];
+
+        const DEFAULT_DATA = [
+            { id: 1, category: 'Web', task: 'Diseño Inicial', start: new Date().toISOString().split('T')[0], duration: 3, completed: false, color: 'bg-blue-200' },
+            { id: 2, category: 'Marketing', task: 'Campaña RRSS', start: new Date().toISOString().split('T')[0], duration: 5, completed: false, color: 'bg-pink-200' },
+        ];
+
+        const DAY_WIDTH = 44;
+        let tasks = [];
+        let activeTaskId = null;
+
+        // --- CARGA DE DATOS SEGURA ---
+        function loadData() {
+            try {
+                const stored = localStorage.getItem('gantt_tasks_html');
+                if (stored) {
+                    tasks = JSON.parse(stored);
+                    if (!Array.isArray(tasks)) throw new Error("Datos corruptos");
+                } else {
+                    tasks = JSON.parse(JSON.stringify(DEFAULT_DATA));
+                }
+            } catch (e) {
+                console.error("Error cargando datos, reiniciando:", e);
+                tasks = JSON.parse(JSON.stringify(DEFAULT_DATA));
+            }
+        }
+
+        // --- FUNCIONES CORE ---
+        function init() {
+            loadData();
+            renderTable();
+            renderGantt();
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('gantt_tasks_html', JSON.stringify(tasks));
+            renderTable(); 
+            renderGantt();
+        }
+
+        // --- RESET DE EMERGENCIA ---
+        function hardReset() {
+            if(confirm("¿Reiniciar todo a los valores por defecto? Se borrarán tus cambios.")) {
+                localStorage.removeItem('gantt_tasks_html');
+                location.reload();
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return "";
+            return String(text).replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function addDays(dateStr, days) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
+            date.setDate(date.getDate() + parseInt(days));
+            return date.toISOString().split('T')[0];
+        }
+
+        function getDaysDiff(startStr, endStr) {
+            const d1 = new Date(startStr);
+            const d2 = new Date(endStr);
+            const diffTime = d2 - d1;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            return diffDays > 0 ? diffDays : 1; 
+        }
+
+        function idsMatch(id1, id2) {
+            return String(id1) === String(id2);
+        }
+
+        // --- RENDERIZADO ---
+        function renderTable() {
+            const list = document.getElementById('task-list');
+            list.innerHTML = '';
+            document.getElementById('task-count').innerText = `${tasks.length} tareas`;
+
+            tasks.forEach(task => {
+                const endDate = addDays(task.start, task.duration);
+                const opacityClass = task.completed ? 'opacity-50 grayscale' : '';
+                const completedBg = task.completed ? 'bg-gray-50' : 'bg-white';
+                
+                // Iconos SVG en línea por seguridad (si falla Lucide)
+                const checkIcon = task.completed 
+                    ? `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="#dcfce7" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>`
+                    : `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>`;
+                
+                const dotsIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>`;
+
+                const row = document.createElement('div');
+                row.className = `grid grid-cols-[40px_160px_1fr_110px_70px_110px_40px] border-b border-gray-100 hover:bg-gray-50 transition-colors items-center h-[44px] group ${completedBg}`;
+                
+                row.innerHTML = `
+                    <div class="border-r h-full flex items-center justify-center">
+                        <button onclick="toggleComplete('${task.id}')" class="hover:scale-110 transition-transform">
+                            ${checkIcon}
+                        </button>
+                    </div>
+                    <div class="border-r h-full px-2 py-1 flex items-center ${opacityClass}">
+                        <div onclick="openCategoryMenu(event, '${task.id}')" class="w-full h-8 px-2 rounded flex items-center justify-between cursor-pointer hover:brightness-95 text-xs font-bold text-gray-800 ${task.color || 'bg-gray-200'}">
+                            <span class="truncate mr-1">${escapeHtml(task.category)}</span>
+                            <span class="opacity-50 text-[10px]">▼</span>
+                        </div>
+                    </div>
+                    <div class="border-r h-full px-3 py-1 flex items-center ${opacityClass}">
+                        <input type="text" value="${escapeHtml(task.task)}" onchange="updateTask('${task.id}', 'task', this.value)" class="input-ghost text-sm font-medium text-gray-700 placeholder-gray-400" placeholder="Nombre tarea...">
+                    </div>
+                    <div class="border-r h-full px-1 py-1 flex items-center justify-center ${opacityClass}">
+                        <input type="date" value="${task.start}" onchange="updateStart('${task.id}', this.value)" class="input-ghost text-center text-xs font-mono text-gray-600 cursor-pointer">
+                    </div>
+                    <div class="border-r h-full px-1 py-1 flex items-center justify-center ${opacityClass}">
+                        <input type="number" min="1" value="${task.duration}" onchange="updateDuration('${task.id}', this.value)" class="input-ghost text-center text-xs font-mono text-gray-600">
+                    </div>
+                    <div class="h-full px-1 py-1 flex items-center justify-center ${opacityClass}">
+                        <input type="date" value="${endDate}" onchange="updateEnd('${task.id}', this.value)" class="input-ghost text-center text-xs font-mono text-gray-500 cursor-pointer">
+                    </div>
+                    <div class="h-full flex items-center justify-center relative">
+                        <button onclick="openActionMenu(event, '${task.id}')" class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors opacity-0 group-hover:opacity-100">
+                            ${dotsIcon}
+                        </button>
+                    </div>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function renderGantt() {
+            if (tasks.length === 0) {
+                document.getElementById('gantt-content').style.width = '100%';
+                return;
+            }
+
+            const timestamps = tasks.map(t => new Date(t.start).getTime());
+            const minTs = Math.min(...timestamps);
+            const maxTs = Math.max(...timestamps) + (30 * 24 * 60 * 60 * 1000); 
+            
+            const startDate = new Date(minTs);
+            startDate.setDate(startDate.getDate() - 5); 
+            const endDate = new Date(maxTs);
+
+            const days = [];
+            let curr = new Date(startDate);
+            while (curr <= endDate) {
+                days.push(new Date(curr));
+                curr.setDate(curr.getDate() + 1);
+            }
+
+            const totalWidth = days.length * DAY_WIDTH;
+            document.getElementById('gantt-content').style.width = `${totalWidth}px`;
+
+            const header = document.getElementById('gantt-header');
+            header.innerHTML = days.map(d => {
+                const isToday = d.toDateString() === new Date().toDateString();
+                const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                const bgClass = isToday ? 'bg-blue-50 text-blue-600 border-b-2 border-b-blue-500 font-bold' : (isWeekend ? 'bg-gray-50 text-gray-300' : 'text-gray-500');
+                
+                return `
+                    <div class="flex-shrink-0 border-r border-gray-100 flex flex-col justify-center items-center text-[10px] ${bgClass}" style="width: ${DAY_WIDTH}px">
+                        <span class="uppercase opacity-70 text-[9px] leading-tight">${d.toLocaleDateString('es-ES', {weekday:'narrow'})}</span>
+                        <span class="text-xs leading-tight">${d.getDate()}</span>
+                    </div>
+                `;
+            }).join('');
+
+            const grid = document.getElementById('gantt-grid');
+            grid.innerHTML = days.map(d => {
+                const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                const isToday = d.toDateString() === new Date().toDateString();
+                return `
+                    <div class="h-full border-r border-gray-100 box-border flex justify-center ${isWeekend ? 'bg-gray-50/50' : ''}" style="width: ${DAY_WIDTH}px">
+                        ${isToday ? '<div class="h-full w-[1px] bg-blue-500 absolute z-10"></div>' : ''}
+                    </div>
+                `;
+            }).join('');
+
+            const barsContainer = document.getElementById('gantt-bars');
+            const labelsContainer = document.getElementById('gantt-labels');
+            barsContainer.innerHTML = '';
+            labelsContainer.innerHTML = '';
+
+            tasks.forEach(task => {
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'border-b border-gray-100 px-4 flex items-center text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors h-[44px]';
+                labelDiv.innerHTML = `
+                    <div class="w-2 h-2 rounded-full mr-2 shrink-0 ${task.completed ? 'bg-gray-300' : (task.color || 'bg-gray-200')}"></div>
+                    <span class="truncate ${task.completed ? 'text-gray-400 line-through' : ''}">${escapeHtml(task.task) || '(Sin nombre)'}</span>
+                `;
+                labelsContainer.appendChild(labelDiv);
+
+                const taskStart = new Date(task.start);
+                taskStart.setMinutes(taskStart.getMinutes() + taskStart.getTimezoneOffset());
+                
+                const diffTime = taskStart - startDate;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                const left = diffDays * DAY_WIDTH;
+                const width = task.duration * DAY_WIDTH;
+                
+                const barWrapper = document.createElement('div');
+                barWrapper.className = 'w-full relative border-b border-gray-100/50 hover:bg-blue-50/10 transition-colors h-[44px]';
+                
+                const barDiv = document.createElement('div');
+                const colorClass = task.completed ? 'bg-gray-300 text-gray-500' : `${task.color} text-gray-800`;
+                barDiv.className = `absolute top-1/2 -translate-y-1/2 h-7 rounded-md shadow-sm border border-white/40 text-xs flex items-center px-2 whitespace-nowrap overflow-hidden transition-all cursor-pointer hover:shadow-md ${colorClass}`;
+                barDiv.style.left = `${left + 2}px`;
+                barDiv.style.width = `${width - 4}px`;
+                barDiv.title = `${task.task} (${task.duration} días)`;
+                
+                if (width > 30) {
+                    barDiv.innerHTML = `<span class="font-semibold text-[11px] truncate drop-shadow-sm">${escapeHtml(task.task)}</span>`;
+                }
+
+                barWrapper.appendChild(barDiv);
+                barsContainer.appendChild(barWrapper);
+            });
+            window.timelineStart = startDate;
+        }
+
+        // --- ACCIONES DE DATOS ---
+        function updateTask(id, key, value) {
+            tasks = tasks.map(t => idsMatch(t.id, id) ? { ...t, [key]: value } : t);
+            saveData();
+        }
+
+        function updateStart(id, newDate) { updateTask(id, 'start', newDate); }
+        
+        function updateDuration(id, newDur) {
+            const dur = parseInt(newDur) || 1;
+            updateTask(id, 'duration', dur);
+        }
+
+        function updateEnd(id, newEndDate) {
+            const task = tasks.find(t => idsMatch(t.id, id));
+            if (!task) return;
+            const days = getDaysDiff(task.start, newEndDate);
+            updateDuration(id, days);
+        }
+
+        function toggleComplete(id) {
+            const task = tasks.find(t => idsMatch(t.id, id));
+            if(task) {
+                task.completed = !task.completed;
+                saveData();
+            }
+        }
+
+        function addNewTask() {
+            const newTask = {
+                id: Date.now(),
+                category: 'General',
+                task: '',
+                start: new Date().toISOString().split('T')[0],
+                duration: 1,
+                completed: false,
+                color: 'bg-cyan-200'
+            };
+            tasks.push(newTask);
+            saveData();
+            setTimeout(() => {
+                const list = document.getElementById('task-list');
+                list.scrollTop = list.scrollHeight;
+            }, 50);
+        }
+
+        function closeAllMenus() {
+            document.getElementById('category-editor').classList.add('hidden');
+            document.getElementById('action-menu').classList.add('hidden');
+        }
+
+        // --- ACCIONES DE MENÚ ---
+        function openActionMenu(e, id) {
+            e.stopPropagation();
+            closeAllMenus();
+            activeTaskId = id;
+            
+            const menu = document.getElementById('action-menu');
+            const rect = e.currentTarget.getBoundingClientRect();
+            let top = rect.bottom + 5;
+            if (top + 120 > window.innerHeight) top = rect.top - 120 - 5;
+            
+            menu.style.top = `${top}px`;
+            menu.style.left = `${rect.right - 160}px`; 
+            menu.classList.remove('hidden');
+        }
+
+        function actionDelete() {
+            if (!activeTaskId) return;
+            if(confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
+                const idx = tasks.findIndex(t => idsMatch(t.id, activeTaskId));
+                if (idx > -1) {
+                    tasks.splice(idx, 1);
+                    saveData();
+                }
+            }
+            closeAllMenus();
+        }
+
+        function actionDuplicate() {
+            if (!activeTaskId) return;
+            const task = tasks.find(t => idsMatch(t.id, activeTaskId));
+            if (task) {
+                const newTask = { ...task, id: Date.now(), task: task.task + ' (Copia)' };
+                const idx = tasks.findIndex(t => idsMatch(t.id, activeTaskId));
+                tasks.splice(idx + 1, 0, newTask);
+                saveData();
+            }
+            closeAllMenus();
+        }
+
+        function actionNewAfter() {
+             if (!activeTaskId) return;
+             const newTask = {
+                id: Date.now(),
+                category: 'General',
+                task: '',
+                start: new Date().toISOString().split('T')[0],
+                duration: 1,
+                completed: false,
+                color: 'bg-cyan-200'
+            };
+            const idx = tasks.findIndex(t => idsMatch(t.id, activeTaskId));
+            tasks.splice(idx + 1, 0, newTask);
+            saveData();
+            closeAllMenus();
+        }
+
+        function openCategoryMenu(e, id) {
+            e.stopPropagation();
+            closeAllMenus();
+            activeTaskId = id;
+            const task = tasks.find(t => idsMatch(t.id, id));
+            
+            const menu = document.getElementById('category-editor');
+            const rect = e.currentTarget.getBoundingClientRect();
+            menu.style.top = `${rect.bottom + 5}px`;
+            menu.style.left = `${rect.left}px`;
+            
+            document.getElementById('cat-name-input').value = task.category;
+            
+            const uniqueCats = [...new Set(tasks.map(t => JSON.stringify({n: t.category, c: t.color})))].map(s => JSON.parse(s));
+            const suggContainer = document.getElementById('cat-suggestions');
+            suggContainer.innerHTML = uniqueCats.slice(0, 5).map(c => 
+                `<button onclick="fillCategory('${escapeHtml(c.n)}', '${c.c}')" class="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 truncate max-w-[100px]">${escapeHtml(c.n)}</button>`
+            ).join('');
+
+            const colorContainer = document.getElementById('color-picker');
+            colorContainer.innerHTML = COLOR_PALETTE.map(c => 
+                `<div onclick="selectColor('${c.class}', this)" data-color="${c.class}" class="w-6 h-6 rounded-full border-2 cursor-pointer transition-transform hover:scale-110 ${c.class} ${task.color === c.class ? 'border-gray-600 scale-110' : 'border-transparent'}" title="${c.name}"></div>`
+            ).join('');
+
+            menu.classList.remove('hidden');
+        }
+
+        function fillCategory(name, color) {
+            document.getElementById('cat-name-input').value = name;
+            const colorDivs = document.querySelectorAll('#color-picker div');
+            colorDivs.forEach(d => { if(d.dataset.color === color) d.click(); });
+        }
+
+        function selectColor(colorClass, el) {
+            document.querySelectorAll('#color-picker div').forEach(d => {
+                d.classList.remove('border-gray-600', 'scale-110');
+                d.classList.add('border-transparent');
+                delete d.dataset.selected;
+            });
+            el.classList.remove('border-transparent');
+            el.classList.add('border-gray-600', 'scale-110');
+            el.dataset.selected = "true";
+        }
+
+        function saveCategory() {
+            if (!activeTaskId) return;
+            const name = document.getElementById('cat-name-input').value;
+            const selectedEl = document.querySelector('#color-picker div[data-selected="true"]');
+            const currentTask = tasks.find(t => idsMatch(t.id, activeTaskId));
+            const color = selectedEl ? selectedEl.dataset.color : currentTask.color;
+            const originalCatName = currentTask.category;
+            
+            tasks = tasks.map(t => {
+                if (idsMatch(t.id, activeTaskId)) return { ...t, category: name, color: color };
+                if (t.category === originalCatName && name === originalCatName) return { ...t, color: color };
+                return t;
+            });
+            saveData();
+            closeAllMenus();
+        }
+
+        function scrollToToday() {
+            if (!window.timelineStart) return;
+            const today = new Date();
+            const start = window.timelineStart;
+            const diffTime = today - start;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const scrollPos = (diffDays * DAY_WIDTH) - 300; 
+            document.getElementById('gantt-container').scrollTo({ left: Math.max(0, scrollPos), behavior: 'smooth' });
+        }
+
+        // --- ARRANQUE ---
+        window.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+</html>
