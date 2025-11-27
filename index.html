@@ -41,6 +41,16 @@
                 Planificador Gantt
             </h1>
         </div>
+        <div class="flex gap-3">
+            <button onclick="hardReset()" class="text-xs text-red-400 hover:text-red-600 underline px-2" title="Borrar todas las tareas">Reiniciar Todo</button>
+            <button onclick="scrollToToday()" class="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-md transition-colors text-xs font-medium shadow-sm">
+                <span>Ir a Hoy</span>
+            </button>
+            <button onclick="addNewTask()" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors shadow-sm font-medium text-sm">
+                <span>+ Nueva Tarea</span>
+            </button>
+        </div>
+    </div>
 
     <!-- CONTENEDOR PRINCIPAL -->
     <div class="flex-1 flex flex-col overflow-hidden relative">
@@ -160,7 +170,7 @@
             "General"
         ];
 
-        // TAREAS BASADAS EN LA IMAGEN ADJUNTA
+        // TAREAS POR DEFECTO (Se cargan si no hay datos guardados)
         const DEFAULT_DATA = [
             { id: 1, category: 'Página Web', task: 'Gráficas ATPW corregir cilindro', start: '2025-11-27', duration: 1, completed: false, color: 'bg-green-200' },
             { id: 2, category: 'Página Web', task: 'Corregir gráfica Calefon ATMD 13 litros, rosca de agua 3/', start: '2025-11-27', duration: 1, completed: false, color: 'bg-green-200' },
@@ -191,6 +201,7 @@
                 if (stored) {
                     tasks = JSON.parse(stored);
                 } else {
+                    // Si es la primera vez, carga los datos de la imagen
                     tasks = JSON.parse(JSON.stringify(DEFAULT_DATA));
                 }
             } catch (e) {
@@ -205,10 +216,11 @@
             renderGantt();
         }
 
+        // FUNCIÓN MODIFICADA: Reiniciar a blanco
         function hardReset() {
-            if(confirm("¿Cargar las tareas de la imagen y reiniciar todo?")) {
-                localStorage.removeItem('gantt_tasks_html');
-                location.reload();
+            if(confirm("¿Estás seguro de borrar todas las tareas y dejar todo en blanco?")) {
+                tasks = []; // Vacia el array
+                saveData(); // Guarda el estado vacío
             }
         }
 
